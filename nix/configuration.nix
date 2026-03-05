@@ -316,7 +316,6 @@ in
                 shared.channels.NixChannelUpdateChannel \
                 shared.channels.ContainerChannel \
                 shared.channels.CVEDerivationClusterProposalCacheChannel \
-                shared.channels.CVEDerivationClusterProposalNotificationChannel \
           '';
         };
 

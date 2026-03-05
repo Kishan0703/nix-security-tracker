@@ -50,12 +50,6 @@ class CVEDerivationClusterProposalCacheChannel(TriggerChannel):
 
 
 @dataclass
-class CVEDerivationClusterProposalNotificationChannel(TriggerChannel):
-    model = CVEDerivationClusterProposal
-    lock_notifications = True
-
-
-@dataclass
 class NixpkgsIssueChannel(TriggerChannel):
     model = NixpkgsIssue
     lock_notifications = False

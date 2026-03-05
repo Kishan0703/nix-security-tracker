@@ -1,9 +1,7 @@
 import logging
 
-import pgpubsub
 from django.contrib.auth.models import User
 
-from shared.channels import CVEDerivationClusterProposalNotificationChannel
 from shared.models.linkage import CVEDerivationClusterProposal
 from webview.models import Profile
 from webview.models import SuggestionNotification as Notification
@@ -75,18 +73,3 @@ def create_package_subscription_notifications(
         except Exception as e:
             logger.error(f"Failed to create notification for user {user.username}: {e}")
     return notifications
-
-
-@pgpubsub.post_insert_listener(CVEDerivationClusterProposalNotificationChannel)
-def notify_subscribed_users_following_suggestion_insert(
-    old: CVEDerivationClusterProposal, new: CVEDerivationClusterProposal
-) -> None:
-    """
-    Notify users subscribed to packages when a new security suggestion is created.
-    """
-    try:
-        create_package_subscription_notifications(new)
-    except Exception as e:
-        logger.error(
-            f"Failed to create package subscription notifications for suggestion {new.pk}: {e}"
-        )

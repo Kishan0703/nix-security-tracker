@@ -9,6 +9,7 @@ Verifies that:
 """
 
 from collections.abc import Callable
+from unittest.mock import patch
 
 import pytest
 from allauth.socialaccount.models import SocialAccount
@@ -104,3 +105,27 @@ class TestCacheCreatesNotifications:
         cached = CachedSuggestions.objects.filter(proposal=suggestion).first()
         assert cached is not None
         assert cached.payload is not None
+
+    def test_notification_failure_propagates(
+        self,
+        make_suggestion: Callable[..., CVEDerivationClusterProposal],
+        make_drv: Callable[..., NixDerivation],
+    ) -> None:
+        """
+        If create_package_subscription_notifications() crashes, the exception
+        must propagate out of cache_new_suggestions() so the pgpubsub worker
+        can retry. Notifications must never be silently dropped.
+        """
+        suggestion = make_suggestion()
+
+        with patch(
+            "shared.listeners.cache_suggestions.create_package_subscription_notifications",
+            side_effect=RuntimeError("notification service unavailable"),
+        ):
+            with pytest.raises(RuntimeError, match="notification service unavailable"):
+                cache_new_suggestions(suggestion)
+
+        # The cache should still have been created before the crash,
+        # since update_or_create runs before the notification call.
+        assert CachedSuggestions.objects.filter(proposal=suggestion).exists()
+

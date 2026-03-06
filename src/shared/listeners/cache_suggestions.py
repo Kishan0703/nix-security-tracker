@@ -220,12 +220,7 @@ def cache_new_suggestions(suggestion: CVEDerivationClusterProposal) -> None:
         logger.info(
             "CVE '%s' suggestion cached for the first time", suggestion.cve.cve_id
         )
-        try:
-            create_package_subscription_notifications(suggestion)
-        except Exception as e:
-            logger.error(
-                f"Failed to create package subscription notifications for suggestion {suggestion.pk}: {e}"
-            )
+        create_package_subscription_notifications(suggestion)
     else:
         logger.info("CVE '%s' suggestion cache updated", suggestion.cve.cve_id)
 

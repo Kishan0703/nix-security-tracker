@@ -49,15 +49,15 @@ class TestSuggestionListViewCachedFilter:
 
 @pytest.mark.django_db
 class TestSuggestionDetailViewCachedGuard:
-    """Verify that the detail view returns 404 for uncached suggestions."""
+    """Verify that the detail view caches on-demand for uncached suggestions."""
 
-    def test_uncached_suggestion_returns_404(
+    def test_uncached_suggestion_caches_on_demand(
         self,
         client: Client,
         user: User,
         make_suggestion: Callable[..., CVEDerivationClusterProposal],
     ) -> None:
-        """Accessing a suggestion WITHOUT a cached value should return 404, not 500."""
+        """Accessing a suggestion WITHOUT a cached value should build the cache on-demand and return 200."""
         suggestion = make_suggestion()
         client.force_login(user)
         response = client.get(
@@ -66,7 +66,7 @@ class TestSuggestionDetailViewCachedGuard:
                 kwargs={"suggestion_id": suggestion.pk},
             ),
         )
-        assert response.status_code == 404
+        assert response.status_code == 200
 
     def test_cached_suggestion_returns_200(
         self,

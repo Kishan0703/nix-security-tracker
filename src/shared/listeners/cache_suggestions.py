@@ -122,7 +122,7 @@ def to_dict(instance: Any) -> dict[str, Any]:
     return data
 
 
-def cache_new_suggestions(suggestion: CVEDerivationClusterProposal) -> None:
+def _generate_and_save_cache(suggestion: CVEDerivationClusterProposal) -> bool:
     # FIXME(@fricklerhandwerk): Here we're blindly picking a title and description, which can be arbitrarily bad.
     # For instance, at the time of writing, most titles in containers are one of
     # - "CVE Program Container" (>600k)
@@ -215,14 +215,41 @@ def cache_new_suggestions(suggestion: CVEDerivationClusterProposal) -> None:
         proposal_id=suggestion.pk,
         defaults={"payload": only_relevant_data.model_dump(mode="json")},
     )
+    return created
 
-    if created:
-        logger.info(
-            "CVE '%s' suggestion cached for the first time", suggestion.cve.cve_id
-        )
-        create_package_subscription_notifications(suggestion)
-    else:
-        logger.info("CVE '%s' suggestion cache updated", suggestion.cve.cve_id)
+
+def cache_new_suggestions(suggestion: CVEDerivationClusterProposal) -> None:
+    is_first_attempt = not CachedSuggestions.objects.filter(proposal_id=suggestion.pk).exists()
+
+    try:
+        created = _generate_and_save_cache(suggestion)
+        if created:
+            logger.info(
+                "CVE '%s' suggestion cached for the first time", suggestion.cve.cve_id
+            )
+            from webview.models import SuggestionNotification
+            if not SuggestionNotification.objects.filter(suggestion_id=suggestion.pk).exists():
+                create_package_subscription_notifications(suggestion)
+        else:
+            logger.info("CVE '%s' suggestion cache updated", suggestion.cve.cve_id)
+
+    except Exception:
+        if is_first_attempt:
+            from webview.models import SuggestionNotification
+            if not SuggestionNotification.objects.filter(suggestion_id=suggestion.pk).exists():
+                logger.warning(
+                    "Cache generation failed on first attempt for %s. Creating notifications as a fallback.",
+                    suggestion.cve.cve_id,
+                )
+                try:
+                    create_package_subscription_notifications(suggestion)
+                except Exception as notify_e:
+                    logger.error(
+                        "Fallback notification generation also failed for %s: %s",
+                        suggestion.cve.cve_id,
+                        notify_e,
+                    )
+        raise
 
 
 # FIXME: this breaks the insert listener, let's report it upstream.

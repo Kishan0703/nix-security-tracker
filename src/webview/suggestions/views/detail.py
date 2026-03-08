@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.views.generic import DetailView, View
 
 from shared.auth import can_edit_suggestion
+from shared.models.cached import CachedSuggestions
 from shared.models.issue import NixpkgsIssue
 from shared.models.linkage import (
     CVEDerivationClusterProposal,
@@ -34,6 +35,9 @@ class SuggestionDetailView(DetailView):
 
     def get(self, request: HttpRequest, suggestion_id: int) -> HttpResponse:
         self.object = self.get_object()
+        if not CachedSuggestions.objects.filter(proposal=self.object).exists():
+            from django.http import Http404
+            raise Http404
         if self.object.status == CVEDerivationClusterProposal.Status.PUBLISHED:
             issue = NixpkgsIssue.objects.get(suggestion=self.object)
             return redirect(
